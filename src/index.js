@@ -67,8 +67,9 @@ function contextFor(roomId) {
   return (history.get(roomId) ?? []).join("\n");
 }
 
-// Room names aren't on the message payload, so look them up once and keep them.
-const roomNames = new Map();
+// Neither the room's name nor its type is on the message payload, so look them
+// up once and keep them.
+const rooms = new Map();
 
 // Message ids already handled.
 //
@@ -93,31 +94,39 @@ function alreadyHandled(msgId) {
   return false;
 }
 
-async function roomNameFor(roomId) {
-  if (roomNames.has(roomId)) return roomNames.get(roomId);
-  let name = roomId; // fall back to the id if the lookup fails
+async function roomInfoFor(roomId) {
+  if (rooms.has(roomId)) return rooms.get(roomId);
+  // Fall back to the id as the name, and to the guess below for the type, if
+  // the lookup fails.
+  let info = { name: roomId, direct: looksDirect(roomId) };
   try {
-    const info = await rcFetch("GET", "/rooms.info", { query: { roomId } });
-    const room = info.room || {};
-    name = room.name || room.fname || (room.t === "d" ? "direct message" : roomId);
+    const res = await rcFetch("GET", "/rooms.info", { query: { roomId } });
+    const room = res.room || {};
+    const direct = room.t === "d";
+    info = {
+      name: room.name || room.fname || (direct ? "direct message" : roomId),
+      direct,
+    };
   } catch {
     // A room we can't introspect is still a room we can answer in.
   }
-  roomNames.set(roomId, name);
-  return name;
+  rooms.set(roomId, info);
+  return info;
 }
 
-function isDirect(roomId) {
-  // Rocket.Chat DM room ids are the concatenation of both user ids, and the
-  // stream doesn't label the room type. The bot's own id being a substring is
-  // the reliable tell.
+// Last-resort DM check, for when rooms.info can't be reached. Some
+// Rocket.Chat versions build a DM room id by concatenating both user ids, so
+// the bot's own id appears inside it — but others use an opaque hash, and then
+// this says "not a DM" about a DM. `t === "d"` from rooms.info is the real
+// answer; this is only the fallback.
+function looksDirect(roomId) {
   return me?._id ? roomId.includes(me._id) : false;
 }
 
-function roomAllowed(roomId, roomName) {
-  if (isDirect(roomId)) return true;
+function roomAllowed(roomId, room) {
+  if (room.direct) return true;
   if (ALL_ROOMS) return true;
-  return ALLOWED_ROOMS.has(roomId) || ALLOWED_ROOMS.has(roomName);
+  return ALLOWED_ROOMS.has(roomId) || ALLOWED_ROOMS.has(room.name);
 }
 
 // --- Commands --------------------------------------------------------------
@@ -204,8 +213,9 @@ async function onMessage(message) {
   if (message.editedAt) return; // an edit, not a new message
   if (alreadyHandled(message._id)) return; // re-broadcast of one we've seen
 
-  const roomName = await roomNameFor(roomId);
-  if (!roomAllowed(roomId, roomName)) return;
+  const room = await roomInfoFor(roomId);
+  const roomName = room.name;
+  if (!roomAllowed(roomId, room)) return;
 
   // Every message in an allowed room becomes context, whether or not we answer.
   remember(roomId, author, text, { trusted: ALLOWED_USERS.has(author) });
@@ -219,7 +229,7 @@ async function onMessage(message) {
     return;
   }
 
-  const addressed = addressesMe(message, me) || isDirect(roomId);
+  const addressed = addressesMe(message, me) || room.direct;
   const body = addressed ? stripAddress(text, me) : text;
 
   // Commands first — cheap, and they must work even when triage would say no.
@@ -237,7 +247,19 @@ async function onMessage(message) {
     }
   }
 
-  if (!body.trim() && !message.attachments?.length) return;
+  if (!body.trim() && !message.attachments?.length) {
+    // A bare "@claude" with nothing after it is a ping, not a request: there is
+    // no prompt to run, but going silent makes the bot look broken. Say
+    // something instead.
+    if (addressed) {
+      await postMessage({
+        roomId,
+        text: `I'm here — what do you need? \`!help\` lists what I can do.`,
+        threadId: message.tmid,
+      });
+    }
+    return;
+  }
 
   // Not addressed to us: ask the cheap model whether this is our business.
   if (!addressed) {
