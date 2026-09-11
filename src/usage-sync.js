@@ -8,7 +8,7 @@ const {
   RC_URL,
   RC_AUTH_TOKEN,
   RC_USER_ID,
-  USAGE_FILE = '/home/ubuntu/projects/rocketchat-claude-workspace/.rc-usage.json',
+  USAGE_FILE = '/home/ubuntu/projects/rocketchat/workspace/.rc-usage.json',
   USAGE_ROOM_ID,
   USAGE_MSG_ID,
 } = process.env;

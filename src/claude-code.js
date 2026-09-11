@@ -15,7 +15,7 @@ const CLAUDE_BIN = process.env.BOT_CLAUDE_BIN || "claude";
 const PERMISSION_MODE = process.env.BOT_PERMISSION_MODE || "acceptEdits";
 const TIMEOUT_MS = Number(process.env.BOT_TIMEOUT_SECONDS || 600) * 1000;
 const WORKSPACE =
-  process.env.BOT_WORKSPACE || path.join(os.homedir(), "rocketchat-claude-workspace");
+  process.env.BOT_WORKSPACE || path.join(os.homedir(), "projects", "rocketchat", "workspace");
 const SESSION_FILE = path.join(WORKSPACE, ".rc-sessions.json");
 const USAGE_FILE = path.join(WORKSPACE, ".rc-usage.json");
 const MODEL = process.env.BOT_MODEL || "";
