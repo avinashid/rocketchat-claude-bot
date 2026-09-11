@@ -1,0 +1,21 @@
+{
+  "name": "rocketchat-claude-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Rocket.Chat front end for Claude Code, with full Rocket.Chat API access as MCP tools",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file=.env src/index.js",
+    "dev": "node --env-file=.env --watch src/index.js",
+    "mcp": "node --env-file=.env mcp/rocketchat-mcp.js",
+    "whoami": "node --env-file=.env src/whoami.js",
+    "setup-bot-user": "node src/setup-bot-user.js",
+    "test": "node --test src/*.test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  }
+}
