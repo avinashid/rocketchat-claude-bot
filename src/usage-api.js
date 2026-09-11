@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 const PORT = Number(process.env.USAGE_API_PORT || 8791);
 const TOKEN = process.env.USAGE_API_TOKEN || '';
 const USAGE_FILE = process.env.USAGE_FILE
-  || '/home/ubuntu/rocketchat-claude-workspace/.rc-usage.json';
+  || '/home/ubuntu/projects/rocketchat-claude-workspace/.rc-usage.json';
 
 const send = (res, code, body) => {
   const payload = JSON.stringify(body);
